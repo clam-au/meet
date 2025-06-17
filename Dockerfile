@@ -34,7 +34,7 @@ RUN pnpm prune --prod
 
 EXPOSE 3000
 
-LABEL org.opencontainers.image.source=https://github.com/clam-au/clamcloud
+LABEL org.opencontainers.image.source=https://github.com/clam-au/meet
 
 # npm start script should run `next start`
 CMD ["pnpm", "start"]
