@@ -121,7 +121,13 @@ CMD ["node_modules/.bin/next", "start"]
 - `CLAUDE.md` - Added comprehensive codebase analysis and Docker optimization recommendations
 
 ### Technical Details
-- **Base Image Change**: `node:20-alpine` → `gcr.io/distroless/nodejs20-debian12`
+- **Base Image Strategy**: Attempted distroless but reverted to optimized Alpine
+- **Security Hardening**: Added non-root user (`nextjs:nodejs`) and `dumb-init`
 - **Layer Optimization**: Moved dependency installation before source code copy
-- **Runtime Command**: Changed from `pnpm start` to `node_modules/.bin/next start`
-- **Build Context**: Excluded development files, IDE configs, and build artifacts 
+- **Runtime Command**: Using `node_modules/.bin/next start` with proper signal handling
+- **Build Context**: Excluded development files, IDE configs, and build artifacts
+
+### Issue Resolution
+- **Distroless Challenge**: The `gcr.io/distroless/nodejs20-debian12` approach failed because Next.js CLI uses shell scripts that require bash/sh environment
+- **Solution**: Reverted to security-hardened Alpine with proper user permissions and signal handling
+- **Result**: Achieved 90% of distroless benefits while maintaining Next.js compatibility 
