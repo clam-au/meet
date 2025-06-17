@@ -6,18 +6,18 @@ import { Toaster } from 'react-hot-toast';
 
 export const metadata: Metadata = {
   title: {
-    default: 'LiveKit Meet | Conference app build with LiveKit open source',
+    default: 'ClamCall',
     template: '%s',
   },
   description:
-    'LiveKit is an open source WebRTC project that gives you everything needed to build scalable and real-time audio and/or video experiences in your applications.',
+    'ClamCall is a registered trademark of Munch Industries Pty LTD',
   twitter: {
-    creator: '@livekitted',
-    site: '@livekitted',
+    creator: '@clam',
+    site: '@clamcloud',
     card: 'summary_large_image',
   },
   openGraph: {
-    url: 'https://meet.livekit.io',
+    url: 'https://hang.clam.au',
     images: [
       {
         url: 'https://meet.livekit.io/images/livekit-meet-open-graph.png',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
         type: 'image/png',
       },
     ],
-    siteName: 'LiveKit Meet',
+    siteName: 'ClamCall',
   },
   icons: {
     icon: {
