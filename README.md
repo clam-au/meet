@@ -4,30 +4,54 @@ This README documents **every deviation** we made from the upstream `livekit/mee
 
 ---
 
-## 1. What this fork does
+## 1. What this fork does
 
 | Area                 | Upstream Meet                                    | *This* repo                                                                 |
 | -------------------- | ------------------------------------------------ | --------------------------------------------------------------------------- |
 | **Room model**       | User chooses / creates rooms                     | Everyone drops into a single room `hang` automatically                      |
 | **Auth flow**        | Users paste server URL + token or use demo cloud | Token is generated server‑side; FE sees only JWT                            |
-| **Identity**         | User enters display name before join             | Random funny name (`randomName()`) then optional **Rename & Rejoin** button |
+| **Identity**         | User enters display name before join             | Random funny name (`randomName()`) then optional **Rename & Rejoin** button |
 | **Intro page**       | Logo + tabs                                      | Full‑screen MP4 intro that auto‑redirects to `/hangout`                     |
 | **Placeholder icon** | Grey SVG silhouette                              | Overridable with custom PNG (see CSS override)                              |
-| **Build**            | No Dockerfile, relies on `npm`                   |  Multi‑stage Dockerfile with `pnpm`, standalone output & GHCR push          |
+| **Build**            | No Dockerfile, relies on `npm`                   | Multi‑stage Dockerfile with `pnpm`, standalone output & GHCR push          |
 
 ---
 
-## 2. Prerequisites
+## 2. Publish & Deploy
+
+This repository uses GitHub Actions to automatically build and publish Docker images when tags are pushed:
+
+1. **Push a tag** to trigger the build:
+   ```bash
+   git tag -a v1.0.1 -m "Release version 1.0.1"
+   git push origin v1.0.1
+   ```
+
+2. **GitHub Actions workflow** (`.github/workflows/docker-publish.yml`) automatically:
+   - Builds the Docker image
+   - Pushes it to `ghcr.io/clam-au/meet:v1.0.1` 
+   - Signs the image with cosign
+
+3. **Update deployment** in the `clam-au/clamcloud` repository:
+   - Edit the Kubernetes deployment manifest
+   - Update the image tag to the new version (e.g., `v1.0.1`)
+   - Commit and push to trigger ArgoCD deployment
+
+This ensures proper versioning and controlled deployments through the GitOps workflow.
+
+---
+
+## 3. Prerequisites
 
 | Tool        | Version tested            | Install hint                                                                |
 | ----------- | ------------------------- | --------------------------------------------------------------------------- |
-| **Node.js** |  ≥ 20 (alpine same)       | [https://nodejs.org/en/download](https://nodejs.org/en/download)            |
-| **pnpm**    |  ≥ 9 (comes via Corepack) | `corepack enable && corepack prepare pnpm@latest --activate`                |
-| **Docker**  |  ≥ 24                     | Standard engine; if you have NVIDIA as default runtime add `--runtime=runc` |
+| **Node.js** | ≥ 20 (alpine same)        | [https://nodejs.org/en/download](https://nodejs.org/en/download)            |
+| **pnpm**    | ≥ 9 (comes via Corepack)  | `corepack enable && corepack prepare pnpm@latest --activate`                |
+| **Docker**  | ≥ 24                      | Standard engine; if you have NVIDIA as default runtime add `--runtime=runc` |
 
 ---
 
-## 3. Environment variables
+## 4. Environment variables
 
 Create `.env.local` (not committed):
 
@@ -48,9 +72,9 @@ LIVEKIT_API_SECRET=3c85bb4d0aa8dfb6d81c78f12c5d1cdeb39ea06884bb083d
 
 ---
 
-## 4. Key source changes
+## 5. Key source changes
 
-### 4.1 `/app/hangout/page.tsx`
+### 5.1 `/app/hangout/page.tsx`
 
 ```tsx
 'use client';
@@ -64,9 +88,9 @@ const [identity] = useState(() => randomName()); // funny IDs
 ```
 
 * `RenameBox` triggers `setIdentity(newName)` → new token → remount.
-* Toolbar spans full width and shows **ClamCloud Call V1.0** on the right.
+* Toolbar spans full width and shows **ClamCloud Call V1.0** on the right.
 
-### 4.2 `/app/api/token/route.ts`
+### 5.2 `/app/api/token/route.ts`
 
 ```ts
 export const runtime = 'nodejs';
@@ -80,15 +104,15 @@ const grant: VideoGrant = {
 };
 ```
 
-### 4.3 Intro video `/app/page.tsx`
+### 5.3 Intro video `/app/page.tsx`
 
 ```tsx
 <video src="/intro.mp4" muted autoPlay playsInline onEnded={...} />
 ```
 
-\* Put `intro.mp4` in `public/`.
+* Put `intro.mp4` in `public/`.
 
-### 4.4 Placeholder override (optional)
+### 5.4 Placeholder override (optional)
 
 Add to **globals.css** *after* `@livekit/components-styles` import:
 
@@ -101,7 +125,7 @@ Add to **globals.css** *after* `@livekit/components-styles` import:
 
 ---
 
-## 5. Local dev
+## 6. Local dev
 
 ```bash
 pnpm install          # one‑time
@@ -110,9 +134,9 @@ pnpm dev              # http://localhost:3000 – intro then /hangout
 
 ---
 
-## 6. Docker build & run
+## 7. Docker build & run
 
-### 6.1 Dockerfile (multi‑stage)
+### 7.1 Dockerfile (multi‑stage)
 
 ```
 # builder
@@ -133,7 +157,7 @@ EXPOSE 3000
 CMD ["pnpm","start"]
 ```
 
-### 6.2 Build & test
+### 7.2 Build & test
 
 ```bash
 docker build -t livekit-meet-hangout:local .
@@ -146,7 +170,7 @@ docker run --runtime=runc -it --rm \
   livekit-meet-hangout:local
 ```
 
-### 6.3 Push to GHCR
+### 7.3 Push to GHCR
 
 ```bash
 # login once
@@ -158,7 +182,7 @@ docker push ghcr.io/clam-au/clam-hangout:latest
 
 ---
 
-## 7. Kubernetes (Talos/ArgoCD) snippet
+## 8. Kubernetes (Talos/ArgoCD) snippet
 
 ```yaml
 apiVersion: apps/v1
@@ -187,11 +211,11 @@ spec:
             - containerPort: 3000
 ```
 
-Expose via an Ingress (TLS) and you’re done.
+Expose via an Ingress (TLS) and you're done.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Error                                          | Fix                                                                                                  |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -202,4 +226,4 @@ Expose via an Ingress (TLS) and you’re done.
 ---
 
 Happy hacking!
-— **big dog / ClamCloud**
+— **big dog / ClamCloud**
