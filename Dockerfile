@@ -1,40 +1,49 @@
 # builder stage
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# Enable corepack and copy package files for better caching
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies (this layer will be cached unless package files change)
 RUN pnpm install --frozen-lockfile
+
+# Set build-time environment variables
+ENV NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.clam.au \
+    LIVEKIT_URL=wss://livekit.clam.au \
+    DEFAULT_ROOM=hang \
+    NEXT_PUBLIC_DEFAULT_ROOM=hang
+
+# Copy source code (after deps for better layer caching)
 COPY . .
 
-# Hardcode the environment variables for build time
-ENV NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.clam.au \
-    LIVEKIT_URL=wss://livekit.clam.au \
-    DEFAULT_ROOM=hang \
-    NEXT_PUBLIC_DEFAULT_ROOM=hang
+# Build the application and prune dev dependencies
+RUN pnpm build && pnpm prune --prod
 
-RUN pnpm build
-
-# runtime stage
-FROM node:20-alpine
+# runtime stage - using distroless for better security and smaller size
+FROM gcr.io/distroless/nodejs20-debian12
 WORKDIR /app
-ENV NODE_ENV=production
-RUN corepack enable
 
-# copy everything from builder
-COPY --from=builder /app/ ./
+# Copy only necessary files from builder
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
 
-# Set runtime environment variables to same values
-ENV NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.clam.au \
+# Set runtime environment variables
+ENV NODE_ENV=production \
+    NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.clam.au \
     LIVEKIT_URL=wss://livekit.clam.au \
     DEFAULT_ROOM=hang \
     NEXT_PUBLIC_DEFAULT_ROOM=hang
-
-# install only prod deps
-RUN pnpm prune --prod
 
 EXPOSE 3000
 
-LABEL org.opencontainers.image.source=https://github.com/clam-au/meet
+# Enhanced container labels for better metadata
+LABEL org.opencontainers.image.source=https://github.com/clam-au/meet \
+      org.opencontainers.image.description="ClamCall video conferencing app" \
+      org.opencontainers.image.licenses=MIT
 
-# npm start script should run `next start`
-CMD ["pnpm", "start"]
+# Use Next.js start command directly (distroless doesn't have pnpm)
+CMD ["node_modules/.bin/next", "start"]
